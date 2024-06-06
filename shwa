@@ -5,6 +5,28 @@ shwa() {
 	>&2 printf '%s: %s\n' "$0" 'not supported'
 }
 
+# Both of these implementations (dirname, basename) are ripped directly from
+# dylanaraps' pure-sh-bible, but with the variable assignments replaced with
+# argument list assignments (preventing damage to the scope).
+
+dirname() {
+	set -- "${1:-.}"
+	set -- "${1%%"${1##*[!/]}"}"
+	[ "${1##*/*}" ] && set -- '.'
+	set -- "${1%/*}"
+	set -- "${1%%"${1##*[!/]}"}"
+	printf '%s\n' "${1:-/}"
+}
+
+basename() {
+	set -- "${1%${1##*[!/]}}" "$2"
+	set -- "${1##*/}" "$2"
+	set -- "${1%"$2"}"
+	printf '%s\n' "${1:-/}"
+}
+
+# TODO: Helpers for terminal control sequences
+
 quote() {
 	while true; do
 		case "$#" in
@@ -21,28 +43,28 @@ printfq() {
 }
 
 put() {
-	is_name "${1:?put: expected name}" || put || return
+	is_name "${1?put: expected name}" || { >&2 printf '%s: %s\n' "put" "invalid name"; return; }
 	eval 'shift; '"$1"'=$*'
 }
 
 lay() {
-	is_name "${1:?lay: expected name}" || lay || return
+	is_name "${1:?lay: expected name}" || { >&2 printf '%s: %s\n' "lay" "invalid name"; return; }
 	eval 'shift; '"$1"'="$(quote "$@")"'
 }
 
 push() {
-	is_name "${1:?push: expected name}" || push || return
+	is_name "${1:?push: expected name}" || { >&2 printf '%s: %s\n' "push" "invalid name"; return; }
 	eval 'shift; '"$1"'="${1+$(quote "$@") }${'"$1"'}"'
 }
 
 queue() {
-	is_name "${1:?queue: expected name}" || queue || return
+	is_name "${1:?queue: expected name}" || { >&2 printf '%s: %s\n' "queue" "invalid name"; return; }
 	eval 'shift; '"$1"'="${'"$1"'+$'"$1"' }$(quote "$@")"'
 }
 
 pop() {
-	is_name "${1:?pop: expected name (source)}" || pop || return
-	is_name "${2:?pop: expected name (target)}" || pop _ || return
+	is_name "${1:?pop: expected name (source)}" || { >&2 printf '%s: %s\n' "pop" "invalid name (source)"; return; }
+	is_name "${2:?pop: expected name (target)}" || { >&2 printf '%s: %s\n' "pop" "invalid name (target)"; return; }
 	eval '
 		eval set -- $'"$1"'
 		'"$2"'=$1
@@ -53,7 +75,7 @@ pop() {
 }
 
 peek() {
-	is_name "${1:?peek: expected name}" || peek || return
+	is_name "${1:?peek: expected name}" || { >&2 printf '%s: %s\n' "peek" "invalid name"; return; }
 	eval '
 		eval set -- $'"$1"'
 		2>/dev/null shift "'${2:-0}'" || return
@@ -62,7 +84,7 @@ peek() {
 }
 
 length() {
-	is_name "${1:?length: expected name}" || length || return
+	is_name "${1:?length: expected name}" || { >&2 printf '%s: %s\n' "length" "invalid name"; return; }
 	eval '
 		eval set -- $'"$1"'
 		printf "%d\n" "$#"
@@ -70,12 +92,12 @@ length() {
 }
 
 nab() {
-	is_name "${1:?nab: expected name}" || nab || return
+	is_name "${1:?nab: expected name}" || { >&2 printf '%s: %s\n' "nab" "invalid name"; return; }
 	eval 'printf "%s\n" "$'"$1"'"'
 }
 
 is() {
-	is_command "${1:?is: expected command}" || is || return
+	is_command "is_${1:?is: expected command}" || { >&2 printf '%s: %s\n' "is" "invalid command"; return; }
 	is_"$@"
 }
 
@@ -95,5 +117,98 @@ is_natural() {
 	esac
 }
 
-[ shwa = "${0##*/}" ] && shwa "$@"
+is_decimal() {
+	case "${1#[+-]}" in
+		''|*.*.*|*[!0-9.]*|*.) false;;
+	esac
+}
 
+is_integer() {
+	is_natural "${1#[+-]}"
+}
+
+is_block() {
+	test -b "$1"
+}
+
+is_character() {
+	test -c "$1"
+}
+
+is_directory() {
+	test -d "$1"
+}
+
+is_file() {
+	test -e "$1"
+}
+
+is_regular() {
+	test -f "$1"
+}
+
+is_sgid() {
+	test -g "$1"
+}
+
+is_symlink() {
+	test -h "$1"
+}
+
+is_fifo() {
+	test -p "$1"
+}
+
+is_readable() {
+	test -r "$1"
+}
+
+is_nonempty() {
+	test -s "$1"
+}
+
+is_empty() {
+	! test -s "$1"
+}
+
+is_terminal() {
+	test -t "$1"
+}
+
+is_suid() {
+	test -u "$1"
+}
+
+is_writeable() {
+	test -w "$1"
+}
+
+is_executable() {
+	test -x "$1"
+}
+
+is_socket() {
+	test -S "$1"
+}
+
+is_zero() {
+	test -z "$1"
+}
+
+is_nonzero() {
+	test -n "$1"
+}
+
+is_same() {
+	while [ $# -gt 1 ]; do
+		[ "$1" = "$2" ] || return
+	done
+}
+
+is_different() {
+	while [ $# -gt 1 ]; do
+		[ "$1" != "$2" ] || return
+	done
+}
+
+[ 'shwa' = "${0##*/}" ] && shwa "$@"
