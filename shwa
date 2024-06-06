@@ -201,13 +201,13 @@ is_nonzero() {
 
 is_same() {
 	while [ $# -gt 1 ]; do
-		[ "$1" = "$2" ] || return
+		[ "$1" = "$2" ] && shift || return
 	done
 }
 
 is_different() {
 	while [ $# -gt 1 ]; do
-		[ "$1" != "$2" ] || return
+		[ "$1" != "$2" ] && shift || return
 	done
 }
 
