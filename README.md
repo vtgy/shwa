@@ -25,7 +25,7 @@ with the same naming scheme as to extend the functionality of `is`.
 
 #### `command`
 
-If a defined command.
+If a valid (known) command.
 
 #### `name`
 
