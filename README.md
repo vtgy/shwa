@@ -1,6 +1,6 @@
-# shwa
+# Shwa (ə)
 
-"Shell With Attachments"
+"Shellscript with attachments"
 
 ## Defense
 
