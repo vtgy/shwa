@@ -1,0 +1,99 @@
+#!/bin/sh
+# shwa
+
+shwa() {
+	>&2 printf '%s: %s\n' "$0" 'not supported'
+}
+
+quote() {
+	while true; do
+		case "$#" in
+			0) return;;
+			1) printfq '%s\n' "$1"; return;;
+			*) printfq '%s ' "$1"; shift;;
+		esac
+	done
+}
+
+printfq() {
+	set -- "${1:?printfq: expected format}" "$(shift; alias _="$*"; alias _)"
+	printf "$1" "${2#??}"
+}
+
+put() {
+	is_name "${1:?put: expected name}" || put || return
+	eval 'shift; '"$1"'=$*'
+}
+
+lay() {
+	is_name "${1:?lay: expected name}" || lay || return
+	eval 'shift; '"$1"'="$(quote "$@")"'
+}
+
+push() {
+	is_name "${1:?push: expected name}" || push || return
+	eval 'shift; '"$1"'="${1+$(quote "$@") }${'"$1"'}"'
+}
+
+queue() {
+	is_name "${1:?queue: expected name}" || queue || return
+	eval 'shift; '"$1"'="${'"$1"'+$'"$1"' }$(quote "$@")"'
+}
+
+pop() {
+	is_name "${1:?pop: expected name (source)}" || pop || return
+	is_name "${2:?pop: expected name (target)}" || pop _ || return
+	eval '
+		eval set -- $'"$1"'
+		'"$2"'=$1
+		2>/dev/null shift || return
+		# This requote of the whole argument list seems... wrong?
+		'"$1"'="$(quote "$@")"
+	'
+}
+
+peek() {
+	is_name "${1:?peek: expected name}" || peek || return
+	eval '
+		eval set -- $'"$1"'
+		2>/dev/null shift "'${2:-0}'" || return
+		printf "%s\n" "$1"
+	'
+}
+
+length() {
+	is_name "${1:?length: expected name}" || length || return
+	eval '
+		eval set -- $'"$1"'
+		printf "%d\n" "$#"
+	'
+}
+
+nab() {
+	is_name "${1:?nab: expected name}" || nab || return
+	eval 'printf "%s\n" "$'"$1"'"'
+}
+
+is() {
+	is_command "${1:?is: expected command}" || is || return
+	is_"$@"
+}
+
+is_command() {
+	2>/dev/null >&2 command -V "$1"
+}
+
+is_name() {
+	case "$1" in
+		''|[!_a-zA-Z]*|*[!_a-zA-Z0-9]*) false;;
+	esac
+}
+
+is_natural() {
+	case "$1" in
+		''|*[!0-9]*) false;;
+	esac
+}
+
+[ shwa = "${0##*/}" ] && shwa "$@"
+
