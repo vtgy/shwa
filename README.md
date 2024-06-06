@@ -16,17 +16,108 @@ Watch out using lists, never allow the variables you use to store lists be affec
 
 Determine if the command `is_$cmd $@` is succesful. Wrapper for the `is_` family of commands.
 
-#### `is_command` `arg`
+Below are all of the `is_` commands as defined directly by shwa. Obviously users may define their own commands
+with the same naming scheme as to extend the functionality of `is`.
 
-Check if `arg` succeeds as an argument to `command -V` (checks if it is runnable as a command).
+#### `command`
 
-#### `is_name` `arg`
+If a defined command.
 
-Check if `arg` is a valid name for a variable (POSIX only).
+#### `name`
 
-#### `is_natural` `arg`
+If a valid name.
 
-Check if `arg` is a natural number (only digits).
+#### `natural`
+
+If consisting entirely of digits.
+
+#### `decimal`
+
+If a valid rational number (typed out in decimal form).
+
+#### `integer`
+
+If an integer (natural with an optional sign).
+
+#### `block`
+
+Same as `test -b`.
+
+#### `character`
+
+Same as `test -c`.
+
+#### `directory`
+
+Same as `test -d`.
+
+#### `file`
+
+Same as `test -e`.
+
+#### `regular`
+
+Same as `test -f`.
+
+#### `sgid`
+
+Same as `test -g`.
+
+#### `symlink`
+
+Same as `test -h`.
+
+#### `fifo`
+
+Same as `test -p`.
+
+#### `readable`
+
+Same as `test -r`.
+
+#### `nonempty`
+
+Same as `test -s`.
+
+#### `empty`
+
+Same as `! test -s`.
+
+#### `terminal`
+
+Same as `test -t`.
+
+#### `suid`
+
+Same as `test -u`.
+
+#### `writeable`
+
+Same as `test -w`.
+
+#### `executable`
+
+Same as `test -x`.
+
+#### `socket`
+
+Same as `test -S`.
+
+#### `zero`
+
+Same as `test -z`.
+
+#### `nonzero`
+
+Same as `test -n`.
+
+#### `same`
+
+If all arguments are the same.
+
+#### `different`
+
+If all arguments are different.
 
 ### `length` `list`
 
@@ -51,6 +142,10 @@ Place `values` onto the front of `list`.
 ### `put` `var` `*value`
 
 Set `var` to `value`.
+
+### `printfq` `fmt` `*value`
+
+Will execute `printf` on the given format and quote-wrapped value. Used by `quote`.
 
 ### `lay` `list` `@values`
 
