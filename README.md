@@ -12,6 +12,10 @@ Watch out using lists, never allow the variables you use to store lists be affec
 
 ## Reference
 
+### `argc` `@args`
+
+Write number of `args` to stdout.
+
 ### `is` `cmd` `...`
 
 Determine if the command `is_$cmd $@` is succesful. Wrapper for the `is_` family of commands.

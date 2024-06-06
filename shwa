@@ -28,6 +28,8 @@ basename() {
 # TODO: Helpers for terminal control sequences
 
 quote() {
+	# Output of this command will always be safe to pass as argument(s) to a command in an eval
+
 	while true; do
 		case "$#" in
 			0) return;;
@@ -85,10 +87,11 @@ peek() {
 
 length() {
 	is_name "${1:?length: expected name}" || { >&2 printf '%s: %s\n' "length" "invalid name"; return; }
-	eval '
-		eval set -- $'"$1"'
-		printf "%d\n" "$#"
-	'
+	eval eval argc '$'"$1"
+}
+
+argc() {
+	printf '%s\n' "$#"
 }
 
 nab() {
