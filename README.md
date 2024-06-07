@@ -18,9 +18,9 @@ Alias for `set --`. Shorthand symmetric with array variable (`$@`).
 
 ## `are` `subcommand` `@values`
 
-### `are_different` `@values`
+### `different`
 
-### `are_same` `@values`
+### `same`
 
 ## `arent` `subcommand` `@values`
 
@@ -46,45 +46,45 @@ Alias for `return 1`.
 
 ## `is` `subcommand` `value`
 
-### `is_block` `value`
+### `block`
 
-### `is_character` `value`
+### `character`
 
-### `is_decimal` `value`
+### `decimal`
 
-### `is_directory` `value`
+### `directory`
 
-### `is_empty` `value`
+### `empty`
 
-### `is_executable` `value`
+### `executable`
 
-### `is_fifo` `value`
+### `fifo`
 
-### `is_file` `value`
+### `file`
 
-### `is_integer` `value`
+### `integer`
 
-### `is_name` `value`
+### `name`
 
-### `is_natural` `value`
+### `natural`
 
-### `is_null` `value`
+### `null`
 
-### `is_readable` `value`
+### `readable`
 
-### `is_regular` `value`
+### `regular`
 
-### `is_sgid` `value`
+### `sgid`
 
-### `is_socket` `value`
+### `socket`
 
-### `is_symlink` `value`
+### `symlink`
 
-### `is_suid` `value`
+### `suid`
 
-### `is_terminal` `value`
+### `terminal`
 
-### `is_writeable` `value`
+### `writeable`
 
 ## `isnt` `subcommand` `value`
 
