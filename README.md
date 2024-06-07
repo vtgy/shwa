@@ -10,155 +10,108 @@ POSIX shellscript sucks; this is a quick and dirty library that substantially im
 
 Watch out using lists, never allow the variables you use to store lists be affected directly by user input (i.e. not wrapped in a call to quote) as code can be easily injected into the `eval set --` calls required to dynamically load the lists into the argument array.
 
-## Reference
+# Reference
 
-### `argc` `@args`
+## `@`
 
-Write number of `args` to stdout.
+Alias for `set --`. Shorthand symmetric with array variable (`$@`).
 
-### `is` `cmd` `...`
+## `are` `subcommand` `@values`
 
-Determine if the command `is_$cmd $@` is succesful. Wrapper for the `is_` family of commands.
+### `are_different` `@values`
 
-Below are all of the `is_` commands as defined directly by shwa. Obviously users may define their own commands
-with the same naming scheme as to extend the functionality of `is`.
+### `are_same` `@values`
 
-#### `command`
+## `arent` `subcommand` `@values`
 
-If a valid (known) command.
+## `count` `@items`
 
-#### `name`
+## `basename` `path` `[suffix]`
 
-If a valid name.
+## `default` `@commands`
 
-#### `natural`
+## `dirname` `path`
 
-If consisting entirely of digits.
+## `err` `@lines`
 
-#### `decimal`
+## `fail`
 
-If a valid rational number (typed out in decimal form).
+Alias for `return 1`.
 
-#### `integer`
+## `get` `variable`
 
-If an integer (natural with an optional sign).
+## `has` `command`
 
-#### `block`
+## `hasnt` `command`
 
-Same as `test -b`.
+## `is` `subcommand` `value`
 
-#### `character`
+### `is_block` `value`
 
-Same as `test -c`.
+### `is_character` `value`
 
-#### `directory`
+### `is_decimal` `value`
 
-Same as `test -d`.
+### `is_directory` `value`
 
-#### `file`
+### `is_empty` `value`
 
-Same as `test -e`.
+### `is_executable` `value`
 
-#### `regular`
+### `is_fifo` `value`
 
-Same as `test -f`.
+### `is_file` `value`
 
-#### `sgid`
+### `is_integer` `value`
 
-Same as `test -g`.
+### `is_name` `value`
 
-#### `symlink`
+### `is_natural` `value`
 
-Same as `test -h`.
+### `is_null` `value`
 
-#### `fifo`
+### `is_readable` `value`
 
-Same as `test -p`.
+### `is_regular` `value`
 
-#### `readable`
+### `is_sgid` `value`
 
-Same as `test -r`.
+### `is_socket` `value`
 
-#### `nonempty`
+### `is_symlink` `value`
 
-Same as `test -s`.
+### `is_suid` `value`
 
-#### `empty`
+### `is_terminal` `value`
 
-Same as `! test -s`.
+### `is_writeable` `value`
 
-#### `terminal`
+## `isnt` `subcommand` `value`
 
-Same as `test -t`.
+Synonym for `! is`.
 
-#### `suid`
+## `lay` `list` `@items`
 
-Same as `test -u`.
+## `length` `list`
 
-#### `writeable`
+## `out` `@lines`
 
-Same as `test -w`.
+## `pass`
 
-#### `executable`
+Alias for `return 0`.
 
-Same as `test -x`.
+## `peek` `list` `[index]`
 
-#### `socket`
+## `pop` `list` `variable`
 
-Same as `test -S`.
+## `printfq` `format` `*value`
 
-#### `zero`
+## `put` `variable` `*value`
 
-Same as `test -z`.
+## `push` `list` `@items`
 
-#### `nonzero`
+## `qat`
 
-Same as `test -n`.
+## `queue` `list` `@items`
 
-#### `same`
-
-If all arguments are the same.
-
-#### `different`
-
-If all arguments are different.
-
-### `length` `list`
-
-Write the number of items in `list` to stdout.
-
-### `nab` `var`
-
-Write the value of `var` to stdout.
-
-### `peek` `list` `[index]`
-
-Write the element at `index` (default is 0) in `list` to stdout.
-
-### `pop` `list` `var`
-
-Place the first element of `list` into `var` and remove it from `list`.
-
-### `push` `list` `@values`
-
-Place `values` onto the front of `list`.
-
-### `put` `var` `*value`
-
-Set `var` to `value`.
-
-### `printfq` `fmt` `*value`
-
-Will execute `printf` on the given format and quote-wrapped value. Used by `quote`.
-
-### `lay` `list` `@values`
-
-Set `list` to a properly quoted string of values (which can be expanded to and manipulated as an argument list).
-
-### `queue` `list` `@values`
-
-Place `values` onto the end of `list`.
-
-### `quote` `@values`
-
-Quote `values` to be stored and evaluated safely.
+## `quote` `@items`

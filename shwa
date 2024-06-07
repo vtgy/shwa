@@ -1,28 +1,34 @@
 #!/bin/sh
 # shwa
 
-shwa() {
-	>&2 printf '%s: %s\n' "$0" 'not supported'
-}
+# Simplify how stati return
+alias pass='return 0'
+alias fail='return 1'
+
+# This is used a lot, and is symmetric with the argument array variable ($@)
+# Unexpectedly, the POSIX standard includes the @ sign as an available character
+# for aliases to use. Unfortunately this can also break syntax highlighting
+# for some reason sometimes :(
+alias @='set --'
 
 # Both of these implementations (dirname, basename) are ripped directly from
 # dylanaraps' pure-sh-bible, but with the variable assignments replaced with
 # argument list assignments (preventing damage to the scope).
 
 dirname() {
-	set -- "${1:-.}"
-	set -- "${1%%"${1##*[!/]}"}"
-	[ "${1##*/*}" ] && set -- '.'
-	set -- "${1%/*}"
-	set -- "${1%%"${1##*[!/]}"}"
-	printf '%s\n' "${1:-/}"
+	@ "${1:-.}"
+	@ "${1%%"${1##*[!/]}"}"
+	[ "${1##*/*}" ] && @ '.'
+	@ "${1%/*}"
+	@ "${1%%"${1##*[!/]}"}"
+	out "${1:-/}"
 }
 
 basename() {
-	set -- "${1%${1##*[!/]}}" "$2"
-	set -- "${1##*/}" "$2"
-	set -- "${1%"$2"}"
-	printf '%s\n' "${1:-/}"
+	@ "${1%"${1##*[!/]}"}" "$2"
+	@ "${1##*/}" "$2"
+	@ "${1%"$2"}"
+	out "${1:-/}"
 }
 
 # TODO: Helpers for terminal control sequences
@@ -30,83 +36,202 @@ basename() {
 quote() {
 	# Output of this command will always be safe to pass as argument(s) to a command in an eval
 
-	while true; do
-		case "$#" in
-			0) return;;
-			1) printfq '%s\n' "$1"; return;;
-			*) printfq '%s ' "$1"; shift;;
-		esac
+	if [ $# -gt 0 ]; then
+		while [ $# -gt 1 ]; do
+			printfq '%s ' "$1"
+			shift
+		done
+
+		printfq '%s\n' "$1"
+		return
+	fi
+
+	# This is heinously ugly but
+	# allows input to be directly quote-ified by
+	# standard i/o on a line-by-line basis like the UNIX GODS intended
+	# If you want to prevent this behavior from stealing standard input
+	# Attach standard input to the null file (</dev/null)
+	(
+	FIRST=1
+	while IFS= read -r LINE || [ "$LINE" ]; do
+		if [ "$FIRST" ]; then
+			printfq '%s' "$LINE"
+			unset FIRST
+		else
+			printfq ' %s' "$LINE"
+		fi
 	done
+	[ "$FIRST" ] || printf '\n'
+	)
+}
+
+qat() {
+	quote "$(cat "$@")"
 }
 
 printfq() {
-	set -- "${1:?printfq: expected format}" "$(shift; alias _="$*"; alias _)"
+	# shellcheck disable=SC2139
+	# This assignment is explicitly gathering this functions arguments and packing them into
+	# the alias to exploit its expansion for free quoting.
+	@ "${1:?printfq: expected format}" "$(shift; alias _="$*"; alias _)"
+	# shellcheck disable=SC2059
+	# This function is an explicit mask for printf's functionality
 	printf "$1" "${2#??}"
 }
 
 put() {
-	is_name "${1?put: expected name}" || { >&2 printf '%s: %s\n' "put" "invalid name"; return; }
-	eval 'shift; '"$1"'=$*'
+	if is name "${1:?put: expected name}"; then
+		eval 'shift; '"$1"'=$*'
+	else
+		err "put: bad name"
+	fi
 }
 
 lay() {
-	is_name "${1:?lay: expected name}" || { >&2 printf '%s: %s\n' "lay" "invalid name"; return; }
-	eval 'shift; '"$1"'="$(quote "$@")"'
+	if is name "${1:?lay: expected name}"; then
+		eval 'shift; '"$1"'="$(quote "$@")"'
+	else
+		err "lay: bad name"
+	fi
 }
 
 push() {
-	is_name "${1:?push: expected name}" || { >&2 printf '%s: %s\n' "push" "invalid name"; return; }
-	eval 'shift; '"$1"'="${1+$(quote "$@") }${'"$1"'}"'
+	if is name "${1:?push: expected name}"; then
+		eval 'shift; '"$1"'="${1+$(quote "$@") }${'"$1"'}"'
+	else
+		err "push: bad name"	
+	fi
 }
 
 queue() {
-	is_name "${1:?queue: expected name}" || { >&2 printf '%s: %s\n' "queue" "invalid name"; return; }
-	eval 'shift; '"$1"'="${'"$1"'+$'"$1"' }$(quote "$@")"'
+	if is name "${1:?queue: expected name}"; then
+		eval 'shift; '"$1"'="${'"$1"'+$'"$1"' }$(quote "$@")"'
+	else
+		err "queue: bad name"
+	fi
 }
 
 pop() {
-	is_name "${1:?pop: expected name (source)}" || { >&2 printf '%s: %s\n' "pop" "invalid name (source)"; return; }
-	is_name "${2:?pop: expected name (target)}" || { >&2 printf '%s: %s\n' "pop" "invalid name (target)"; return; }
+	if isnt name "${1:?pop: expected name (source)}"; then
+		err "pop: invalid name (source)"
+		fail
+	fi
+
+	if isnt name "${2:?pop: expected name (target)}"; then
+		err "pop: invalid name (target)"
+		fail
+	fi
+
 	eval '
-		eval set -- $'"$1"'
+		eval @ $'"$1"'
 		'"$2"'=$1
-		2>/dev/null shift || return
+		2>/dev/null shift || fail
 		# This requote of the whole argument list seems... wrong?
+		# Like if this is placed in a hot loop...
 		'"$1"'="$(quote "$@")"
 	'
 }
 
 peek() {
-	is_name "${1:?peek: expected name}" || { >&2 printf '%s: %s\n' "peek" "invalid name"; return; }
-	eval '
-		eval set -- $'"$1"'
-		2>/dev/null shift "'${2:-0}'" || return
-		printf "%s\n" "$1"
-	'
+	if is name "${1:?peek: expected name}"; then
+		eval '
+			eval @ $'"$1"'
+			2>/dev/null shift "'"${2:-0}"'" || fail
+			printf "%s\n" "$1"
+		'
+	else
+		err "peek: bad name"
+	fi
 }
 
 length() {
-	is_name "${1:?length: expected name}" || { >&2 printf '%s: %s\n' "length" "invalid name"; return; }
-	eval eval argc '$'"$1"
+	if is name "${1:?length: expected name}"; then
+		eval eval count '$'"$1"
+	else
+		err "length: bad name"
+	fi
 }
 
-argc() {
-	printf '%s\n' "$#"
-}
+count() { out "$#"; }
 
-nab() {
-	is_name "${1:?nab: expected name}" || { >&2 printf '%s: %s\n' "nab" "invalid name"; return; }
-	eval 'printf "%s\n" "$'"$1"'"'
+# This might conflict with some (optional) ANCIENT version control stuff, which would suck. If this ever comes up
+# in practice I will add some kind of protection mechanism or rename this function?
+get() {
+	if is name "${1:?get: expected name}"; then
+		# I do not like that there is no syntax highlighting for eval blocks.
+		# Rather, I wish there was actual proper syntax for delayed expansion instead
+		# of having to wrap entire expressions in eval and injecting variables directly
+		# as string concats outside the context of the eval environment (for the duration
+		# of execution, obviously eval will effect the current shell environment directly
+		# and will not require subshell).
+		eval 'printf "%s\n" "$'"$1"'"'
+	else
+		err "get: bad name"
+	fi
 }
 
 is() {
-	is_command "is_${1:?is: expected command}" || { >&2 printf '%s: %s\n' "is" "invalid command"; return; }
-	is_"$@"
+	if has is_"${1:?is: expected subcommand}"; then
+		# shellcheck disable=SC2145
+		# We have specifically checked to ensure the first argument is a command with the prefix is_,
+		# so expanding this array like this effectively just executes that command with parameters passed
+		# directly as they are from the rest of the command.
+		is_"$@"
+	else
+		err "is: bad subcommand"
+	fi
 }
 
-is_command() {
-	2>/dev/null >&2 command -V "$1"
+	# TODO: There is something more correct somewhere
+
+isnt() { ! is "$@"; }
+
+out() {
+	# Stupid simple, essentially a replacement for `echo`
+	# Trickily, maybe stupidly, this command will preserve
+	# the current status code (i.e. cannot signal errors.)
+
+	eval '
+		printf "%s\\n" "$@"
+		return '"$?"'
+	'
 }
+
+err() { out "$@" >&2; }
+
+has() { 2>/dev/null >&2 command -V "$1"; }
+
+default() {
+	while [ $# -gt 0 ]; do
+		if has "$1"; then
+			out "$1"
+			return
+		fi
+	done
+	false
+}
+
+hasnt() { ! has "$@"; }
+
+# plural is
+are() {
+	if has are_"${1:?are: missing subcommand}"; then
+		# shellcheck disable=SC2145
+		are_"$@"
+	elif has is_"$1"; then
+		[ $# -gt 1 ] || return
+		eval '
+			shift
+			while [ $# -gt 0 ]; do
+				is_'"$1"' "$1" && shift || return
+			done
+		'
+	else
+		err "are: bad subcommand"
+	fi
+}
+
+arent() { ! are "$@"; }
 
 is_name() {
 	case "$1" in
@@ -126,92 +251,56 @@ is_decimal() {
 	esac
 }
 
-is_integer() {
-	is_natural "${1#[+-]}"
-}
+is_integer() { is_natural "${1#[+-]}"; }
 
-is_block() {
-	test -b "$1"
-}
+is_block() { [ -b "$1" ]; }
 
-is_character() {
-	test -c "$1"
-}
+is_character() { [ -c "$1" ]; }
 
-is_directory() {
-	test -d "$1"
-}
+is_directory() { [ -d "$1" ]; }
 
-is_file() {
-	test -e "$1"
-}
+is_file() { [ -e "$1" ]; }
 
-is_regular() {
-	test -f "$1"
-}
+is_regular() { [ -f "$1" ]; }
 
-is_sgid() {
-	test -g "$1"
-}
+is_sgid() { [ -g "$1" ]; }
 
-is_symlink() {
-	test -h "$1"
-}
+is_symlink() { [ -h "$1" ]; }
 
-is_fifo() {
-	test -p "$1"
-}
+is_fifo() { [ -p "$1" ]; }
 
-is_readable() {
-	test -r "$1"
-}
+is_readable() { [ -r "$1" ]; }
 
-is_nonempty() {
-	test -s "$1"
-}
+is_empty() { ! [ -s "$1" ]; }
 
-is_empty() {
-	! test -s "$1"
-}
+is_terminal() { [ -t "$1" ]; }
 
-is_terminal() {
-	test -t "$1"
-}
+is_suid() { [ -u "$1" ]; }
 
-is_suid() {
-	test -u "$1"
-}
+is_writeable() { [ -w "$1" ]; }
 
-is_writeable() {
-	test -w "$1"
-}
+is_executable() { [ -x "$1" ]; }
 
-is_executable() {
-	test -x "$1"
-}
+is_socket() { [ -S "$1" ]; }
 
-is_socket() {
-	test -S "$1"
-}
+is_null() { [ -z "$1" ]; }
 
-is_zero() {
-	test -z "$1"
-}
+are_same() {
+	[ $# -ne 1 ] || return
+	[ $# -eq 0 ] && return
 
-is_nonzero() {
-	test -n "$1"
-}
-
-is_same() {
 	while [ $# -gt 1 ]; do
 		[ "$1" = "$2" ] && shift || return
 	done
 }
 
-is_different() {
+are_different() {
+	[ $# -gt 0 ] || return
+	[ $# -eq 1 ] && return
+
 	while [ $# -gt 1 ]; do
 		[ "$1" != "$2" ] && shift || return
 	done
 }
 
-[ 'shwa' = "${0##*/}" ] && shwa "$@"
+export SHWA=1
