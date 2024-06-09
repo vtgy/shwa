@@ -12,106 +12,122 @@ Watch out using lists, never allow the variables you use to store lists be affec
 
 # Reference
 
-## `@`
+## `basename` `path` `[suffix]`
 
-Alias for `set --`. Shorthand symmetric with array variable (`$@`).
+Calculate the immediately relative name of `path` (with optional removal of `suffix`.)
 
-## `are` `subcommand` `@values`
+## `bsf` `path`
 
-### `are_different` `@values`
-
-### `are_same` `@values`
-
-## `arent` `subcommand` `@values`
+Pass if `path` is a block-special file.
 
 ## `count` `@items`
 
-## `basename` `path` `[suffix]`
+Write `$#` to standard output.
+
+## `csf` `path`
+
+Pass if `path` is a character-special file.
+
+## `decimal` `argument`
+
+Pass if `argument` is a decimal number.
 
 ## `default` `@commands`
 
+Write first of `commands` to succeed as argument to `has`. Useful for determining available dependency options automatically.
+
 ## `dirname` `path`
+
+Calculate the path of the directory containing `path`.
+
+## `directory` `path`
+
+Pass if `path` is a directory.
+
+## `empty` `path`
+
+Pass if `path` is empty.
 
 ## `err` `@lines`
 
-## `fail`
+Write `lines` to standard error.
 
-Alias for `return 1`.
+## `executable` `path`
 
-## `get` `variable`
+Pass if `path` is executable.
+
+## `exists` `path`
+
+Pass if `path` is a file.
+
+## `fifo` `path`
+
+Pass if `path` is a FIFO (named pipe.)
+
+## `get` `name`
+
+Write value of variable `name` to standard output.
 
 ## `has` `command`
 
-## `hasnt` `command`
+Pass if `command` is available.
 
-## `is` `subcommand` `value`
+## `integer` `argument`
 
-### `is_block` `value`
-
-### `is_character` `value`
-
-### `is_decimal` `value`
-
-### `is_directory` `value`
-
-### `is_empty` `value`
-
-### `is_executable` `value`
-
-### `is_fifo` `value`
-
-### `is_file` `value`
-
-### `is_integer` `value`
-
-### `is_name` `value`
-
-### `is_natural` `value`
-
-### `is_null` `value`
-
-### `is_readable` `value`
-
-### `is_regular` `value`
-
-### `is_sgid` `value`
-
-### `is_socket` `value`
-
-### `is_symlink` `value`
-
-### `is_suid` `value`
-
-### `is_terminal` `value`
-
-### `is_writeable` `value`
-
-## `isnt` `subcommand` `value`
-
-Synonym for `! is`.
+Pass if `argument` is an integer.
 
 ## `lay` `list` `@items`
 
+Assign variable `list` to quoted `items`.
+
 ## `length` `list`
+
+## `match` `pattern` `argument`
+
+## `name` `argument`
+
+## `natural` `argument`
+
+## `null` `argument`
 
 ## `out` `@lines`
 
-## `pass`
-
-Alias for `return 0`.
-
-## `peek` `list` `[index]`
+## `peek` `list` `[index=0]`
 
 ## `pop` `list` `variable`
 
-## `printfq` `format` `*value`
-
-## `put` `variable` `*value`
+## `printfq` `format` `argument`
 
 ## `push` `list` `@items`
+
+## `put` `name` `*value`
 
 ## `qat`
 
 ## `queue` `list` `@items`
 
 ## `quote` `@items`
+
+Wrap each of `items` in evaluation-safe quoting and write them to standard output in a single, space-seperated line.
+
+This is a highly powerful operation that enables all further list operations.
+
+If no items are provided, they will be read line-by-line from standard input.
+
+## `readable` `path`
+
+## `regular` `path`
+
+## `same` `@items`
+
+## `sgid` `path`
+
+## `socket` `path`
+
+## `suid` `path`
+
+## `symlink` `path`
+
+## `terminal` `[fd=0]`
+
+## `writeable` `path`

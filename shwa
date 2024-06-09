@@ -1,37 +1,264 @@
 #!/bin/sh
 # shwa
 
-# Simplify how stati return
-alias pass='return 0'
-alias fail='return 1'
+basename() {
+	: "${1?basename: expected path}"
+	set -- "${1%"${1##*[!/]}"}" "$2"
+	set -- "${1##*/}" "$2"
+	set -- "${1%"$2"}"
+	out "$1"
+}
 
-# This is used a lot, and is symmetric with the argument array variable ($@)
-# Unexpectedly, the POSIX standard includes the @ sign as an available character
-# for aliases to use. Unfortunately this can also break syntax highlighting
-# for some reason sometimes :(
-alias @='set --'
+bsf() {
+	[ -b "${1?bsf: expected path}" ]
+}
 
-# Both of these implementations (dirname, basename) are ripped directly from
-# dylanaraps' pure-sh-bible, but with the variable assignments replaced with
-# argument list assignments (preventing damage to the scope).
+count() {
+	out "$#"
+}
+
+csf() {
+	[ -c "${1?csf: expected path}" ]
+}
+
+decimal() {
+	: "${1?decimal: expected argument}"
+	! match "''"'|*.*.*|*[!0-9.]*|*.' "${1#[+-]}"
+}
+
+default() {
+	while [ $# -gt 0 ]; do
+		if has "$1"; then
+			out "$1"
+			return
+		fi
+	done
+	false
+}
 
 dirname() {
-	@ "${1:-.}"
-	@ "${1%%"${1##*[!/]}"}"
-	[ "${1##*/*}" ] && @ '.'
-	@ "${1%/*}"
-	@ "${1%%"${1##*[!/]}"}"
+	: "${1?dirname: expected path}"
+	set -- "${1%%"${1##*[!/]}"}"
+	[ "${1##*/*}" ] && set -- '.'
+	set -- "${1%/*}"
+	set -- "${1%%"${1##*[!/]}"}"
 	out "${1:-/}"
 }
 
-basename() {
-	@ "${1%"${1##*[!/]}"}" "$2"
-	@ "${1##*/}" "$2"
-	@ "${1%"$2"}"
-	out "${1:-/}"
+directory() {
+	[ -d "${1?directory: expected path}" ]
+}
+
+dump() {
+	set -x
+	if name "${1?dump: expected list (name)}"; then
+		eval '
+			eval set -- $'"$1"'
+			printf %b\\n "$@"
+		'
+	else
+		err "dump: bad list (name)"
+	fi
+	set +x
+}
+
+empty() {
+	! [ -s "${1?empty: expected path}" ]
+}
+
+err() {
+	out "$@" >&2
+}
+
+executable() {
+	[ -x "${1?executable: expected path}" ]
+}
+
+exists() {
+	[ -e "${1?exists: expected path}" ]
+}
+
+fifo() {
+	[ -p "${1?fifo: expected path}" ]
+}
+
+get() {
+	# This might conflict with some (optional) ANCIENT version control stuff, which would suck.
+	# If this ever comes up
+	# in practice I will add some kind of protection mechanism or rename this function?
+	# `nab` or `see` sound like maybe the best alternatives?
+
+	if name "${1?get: expected name}"; then
+		# I do not like that there is no syntax highlighting for eval blocks.
+		# Rather, I wish there was actual proper syntax for delayed expansion instead
+		# of having to wrap entire expressions in eval and injecting variables directly
+		# as string concats outside the context of the eval environment (for the duration
+		# of execution, obviously eval will effect the current shell environment directly
+		# and will not require subshell).
+		eval '[ "${'"$1"'+.}" ] && printf "%s\n" "$'"$1"'"'
+	else
+		err "get: bad name"
+	fi
+}
+
+has() {
+	2>/dev/null >&2 command -V "${1?has: expected command}"
+}
+
+integer() {
+	natural "${1#[+-]}"
+}
+
+lay() {
+	if name "${1?lay: expected list (name)}"; then
+		eval 'shift; '"$1"'="$(quote "$@")"'
+	else
+		err "lay: bad list (name)"
+	fi
+}
+
+length() {
+	if name "${1?length: expected list (name)}"; then
+		eval eval count '$'"$1"
+	else
+		err "length: bad list (name)"
+	fi
+}
+
+match() {
+	eval '
+		case "$2" in
+			'"${1?match: expected pattern}"') return 0;;
+		esac
+		return 1
+	'
+}
+
+name() {
+	! match "''"'|[!_a-zA-Z]*|*[!_a-zA-Z0-9]*' "${1?name: expected argument}"
+}
+
+natural() {
+	! match "''"'|*[!0-9]*' "${1?natural: expected argument}"
+}
+
+null() {
+	[ -z "${1?null: expected argument}" ]
+}
+
+out() {
+	# Stupid simple, essentially a replacement for `echo`
+	[ $# -gt 0 ] && printf '%s\n' "$@" 
+}
+
+peek() {
+	if name "${1?peek: expected list (name)}"; then
+		if [ $# -eq 1 ] || natural "$2"; then
+			eval '
+				eval set -- $'"$1"'
+				2>/dev/null shift "'"${2-0}"'" || return
+				[ $# -eq 0 ] || return
+				out "$1"
+			'
+		else
+			err "peek: bad index"
+		fi
+	else
+		err "peek: bad list (name)"
+	fi
+}
+
+pop() {
+	if ! name "${1?pop: expected source (name)}"; then
+		err "pop: bad source (name)"
+		return
+	fi
+
+	if ! name "${2?pop: expected target (name)}"; then
+		err "pop: bad target (name))"
+		return
+	fi
+
+	eval '
+		eval set -- $'"$1"'
+		'"$2"'=$1
+		2>/dev/null shift || return
+		# This requote of the whole argument list seems... wrong?
+		# Like if this is placed in a hot loop...
+		'"$1"'="$(quote "$@")"
+	'
+}
+
+printfq() {
+	# shellcheck disable=SC2139
+	# This assignment is explicitly gathering this functions arguments and packing them into
+	# the alias to exploit its expansion for free quoting.
+	: "${1?printfq: expected format}"
+
+	# TODO: Instead of checking for names, which is a weak selection that will miss a lot of obviously
+	# optimizable stuff, we should check for 'safe' strings that will not cause any harm when
+	# expanded into a shell command. Reversing this out long enough should get us close to something
+	# properly usable that avoids the maximum number of possible subshells.
+	if name "$2"; then
+		# Still add quotes so we can perform certain nicety operations on quoted lists
+		# that mean we don't need to throw an entire list into a requote during hot routines
+		set -- "$1" "'$2'"
+	else
+		# shellcheck disable=SC2139
+		set -- "$1" "$(alias _="$2"; alias _)"
+		set -- "$1" "${2#??}"
+	fi
+	# shellcheck disable=SC2059
+	# This function is an explicit mask for printf's functionality
+	printf "$@"
+}
+
+push() {
+	if name "${1?push: expected list (name)}"; then
+		eval 'shift; '"$1"'="${1+$(quote "$@") }${'"$1"'}"'
+	else
+		err "push: bad list (name)"	
+	fi
+}
+
+put() {
+	if name "${1?put: expected name}"; then
+		if [ $# -gt 1 ]; then
+			eval 'shift; '"$1"'=$*'
+		else
+			eval 'shift; '"$1"'="$(cat)"'
+		fi
+	else
+		err "put: bad name"
+	fi
+}
+
+putq() {
+	if name "${1?putq: expected name}"; then
+		if [ $# -gt 1 ]; then
+			eval 'shift; '"$1"'="$(quote "$*")"'
+		else
+			eval 'shift; '"$1"'="$(qat)"'
+		fi
+	else
+		err "putq: bad name"
+	fi
 }
 
 # TODO: Helpers for terminal control sequences
+
+qat() {
+	set -- "$(cat "$@"; printf .)" # Hang final character off of output to save trailing whitespace
+	quote "${1%?}"
+}
+
+queue() {
+	if name "${1?queue: expected list (name)}"; then
+		eval 'shift; '"$1"'="${'"$1"'+$'"$1"' }$(quote "$@")"'
+	else
+		err "queue: bad list (name)"
+	fi
+}
 
 quote() {
 	# Output of this command will always be safe to pass as argument(s) to a command in an eval
@@ -65,227 +292,15 @@ quote() {
 	)
 }
 
-qat() {
-	quote "$(cat "$@")"
+readable() {
+	[ -r "${1?readable: expected path}" ]
 }
 
-printfq() {
-	# shellcheck disable=SC2139
-	# This assignment is explicitly gathering this functions arguments and packing them into
-	# the alias to exploit its expansion for free quoting.
-	@ "${1:?printfq: expected format}" "$(shift; alias _="$*"; alias _)"
-	# shellcheck disable=SC2059
-	# This function is an explicit mask for printf's functionality
-	printf "$1" "${2#??}"
+regular() {
+	[ -f "${1?regular: expected path}" ]
 }
 
-put() {
-	if is name "${1:?put: expected name}"; then
-		eval 'shift; '"$1"'=$*'
-	else
-		err "put: bad name"
-	fi
-}
-
-lay() {
-	if is name "${1:?lay: expected name}"; then
-		eval 'shift; '"$1"'="$(quote "$@")"'
-	else
-		err "lay: bad name"
-	fi
-}
-
-push() {
-	if is name "${1:?push: expected name}"; then
-		eval 'shift; '"$1"'="${1+$(quote "$@") }${'"$1"'}"'
-	else
-		err "push: bad name"	
-	fi
-}
-
-queue() {
-	if is name "${1:?queue: expected name}"; then
-		eval 'shift; '"$1"'="${'"$1"'+$'"$1"' }$(quote "$@")"'
-	else
-		err "queue: bad name"
-	fi
-}
-
-pop() {
-	if isnt name "${1:?pop: expected name (source)}"; then
-		err "pop: invalid name (source)"
-		fail
-	fi
-
-	if isnt name "${2:?pop: expected name (target)}"; then
-		err "pop: invalid name (target)"
-		fail
-	fi
-
-	eval '
-		eval @ $'"$1"'
-		'"$2"'=$1
-		2>/dev/null shift || fail
-		# This requote of the whole argument list seems... wrong?
-		# Like if this is placed in a hot loop...
-		'"$1"'="$(quote "$@")"
-	'
-}
-
-peek() {
-	if is name "${1:?peek: expected name}"; then
-		eval '
-			eval @ $'"$1"'
-			2>/dev/null shift "'"${2:-0}"'" || fail
-			printf "%s\n" "$1"
-		'
-	else
-		err "peek: bad name"
-	fi
-}
-
-length() {
-	if is name "${1:?length: expected name}"; then
-		eval eval count '$'"$1"
-	else
-		err "length: bad name"
-	fi
-}
-
-count() { out "$#"; }
-
-# This might conflict with some (optional) ANCIENT version control stuff, which would suck. If this ever comes up
-# in practice I will add some kind of protection mechanism or rename this function?
-get() {
-	if is name "${1:?get: expected name}"; then
-		# I do not like that there is no syntax highlighting for eval blocks.
-		# Rather, I wish there was actual proper syntax for delayed expansion instead
-		# of having to wrap entire expressions in eval and injecting variables directly
-		# as string concats outside the context of the eval environment (for the duration
-		# of execution, obviously eval will effect the current shell environment directly
-		# and will not require subshell).
-		eval 'printf "%s\n" "$'"$1"'"'
-	else
-		err "get: bad name"
-	fi
-}
-
-is() {
-	if has is_"${1:?is: expected subcommand}"; then
-		# shellcheck disable=SC2145
-		# We have specifically checked to ensure the first argument is a command with the prefix is_,
-		# so expanding this array like this effectively just executes that command with parameters passed
-		# directly as they are from the rest of the command.
-		is_"$@"
-	else
-		err "is: bad subcommand"
-	fi
-}
-
-	# TODO: There is something more correct somewhere
-
-isnt() { ! is "$@"; }
-
-out() {
-	# Stupid simple, essentially a replacement for `echo`
-	# Trickily, maybe stupidly, this command will preserve
-	# the current status code (i.e. cannot signal errors.)
-
-	eval '
-		printf "%s\\n" "$@"
-		return '"$?"'
-	'
-}
-
-err() { out "$@" >&2; }
-
-has() { 2>/dev/null >&2 command -V "$1"; }
-
-default() {
-	while [ $# -gt 0 ]; do
-		if has "$1"; then
-			out "$1"
-			return
-		fi
-	done
-	false
-}
-
-hasnt() { ! has "$@"; }
-
-# plural is
-are() {
-	if has are_"${1:?are: missing subcommand}"; then
-		# shellcheck disable=SC2145
-		are_"$@"
-	elif has is_"$1"; then
-		[ $# -gt 1 ] || return
-		eval '
-			shift
-			while [ $# -gt 0 ]; do
-				is_'"$1"' "$1" && shift || return
-			done
-		'
-	else
-		err "are: bad subcommand"
-	fi
-}
-
-arent() { ! are "$@"; }
-
-is_name() {
-	case "$1" in
-		''|[!_a-zA-Z]*|*[!_a-zA-Z0-9]*) false;;
-	esac
-}
-
-is_natural() {
-	case "$1" in
-		''|*[!0-9]*) false;;
-	esac
-}
-
-is_decimal() {
-	case "${1#[+-]}" in
-		''|*.*.*|*[!0-9.]*|*.) false;;
-	esac
-}
-
-is_integer() { is_natural "${1#[+-]}"; }
-
-is_block() { [ -b "$1" ]; }
-
-is_character() { [ -c "$1" ]; }
-
-is_directory() { [ -d "$1" ]; }
-
-is_file() { [ -e "$1" ]; }
-
-is_regular() { [ -f "$1" ]; }
-
-is_sgid() { [ -g "$1" ]; }
-
-is_symlink() { [ -h "$1" ]; }
-
-is_fifo() { [ -p "$1" ]; }
-
-is_readable() { [ -r "$1" ]; }
-
-is_empty() { ! [ -s "$1" ]; }
-
-is_terminal() { [ -t "$1" ]; }
-
-is_suid() { [ -u "$1" ]; }
-
-is_writeable() { [ -w "$1" ]; }
-
-is_executable() { [ -x "$1" ]; }
-
-is_socket() { [ -S "$1" ]; }
-
-is_null() { [ -z "$1" ]; }
-
-are_same() {
+same() {
 	[ $# -ne 1 ] || return
 	[ $# -eq 0 ] && return
 
@@ -294,13 +309,28 @@ are_same() {
 	done
 }
 
-are_different() {
-	[ $# -gt 0 ] || return
-	[ $# -eq 1 ] && return
+sgid() {
+	[ -g "${1?sgid: expected path}" ]
+}
 
-	while [ $# -gt 1 ]; do
-		[ "$1" != "$2" ] && shift || return
-	done
+socket() {
+	[ -S "${1?socket: expected path}" ]
+}
+
+suid() {
+	[ -u "${1?suid: expected path}" ]
+}
+
+symlink() {
+	[ -h "${1?symlink: expected path}" ]
+}
+
+terminal() {
+	[ -t "${1-0}" ]
+}
+
+writeable() {
+	[ -w "${1?writeable: expected path}" ]
 }
 
 export SHWA=1
