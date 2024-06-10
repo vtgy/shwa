@@ -1,6 +1,14 @@
 #!/bin/sh
 # shwa
 
+allexport() {
+	setmask -a "$@"
+}
+
+alnum() {
+	! match "''"'|*[!a-zA-Z0-9]*' "$1"
+}
+
 basename() {
 	: "${1?basename: expected path}"
 	set -- "${1%"${1##*[!/]}"}" "$2"
@@ -10,6 +18,8 @@ basename() {
 }
 
 bsf() {
+	# bsf and csf are named kind of weird, but taking the names "block" and "character" for
+	# special file stuff seems also bad
 	[ -b "${1?bsf: expected path}" ]
 }
 
@@ -78,6 +88,14 @@ exists() {
 	[ -e "${1?exists: expected path}" ]
 }
 
+defined() {
+	if name "${1?defined: expected name}"; then
+		eval '[ "${'"$1"'+.}" ]'
+	else
+		err "defined: bad name"
+	fi
+}
+
 fifo() {
 	[ -p "${1?fifo: expected path}" ]
 }
@@ -85,8 +103,8 @@ fifo() {
 get() {
 	# This might conflict with some (optional) ANCIENT version control stuff, which would suck.
 	# If this ever comes up
-	# in practice I will add some kind of protection mechanism or rename this function?
-	# `nab` or `see` sound like maybe the best alternatives?
+	# in practice I will add some kind of protection mechanism or rename this function
+	# `nab` or `see` are alternatives
 
 	if name "${1?get: expected name}"; then
 		# I do not like that there is no syntax highlighting for eval blocks.
@@ -95,7 +113,7 @@ get() {
 		# as string concats outside the context of the eval environment (for the duration
 		# of execution, obviously eval will effect the current shell environment directly
 		# and will not require subshell).
-		eval '[ "${'"$1"'+.}" ] && printf "%s\n" "$'"$1"'"'
+		defined "$1" && eval printf '%s\\n' "\$$1"
 	else
 		err "get: bad name"
 	fi
@@ -125,9 +143,28 @@ length() {
 	fi
 }
 
+map() {
+	if name "${1?map: expected list (name)}"; then
+		eval '
+			eval set -- $'"$1"'
+			while [ $# -gt 0 ]; do
+				'"$2"' "$1"
+				shift
+			done
+		'
+	else
+		err "map: bad list (name)"
+	fi
+}
+
 match() {
 	eval '
-		case "$2" in
+		shift
+		if [ $# -eq 0 ]; then
+			set -- "$(cat; printf .)"
+			set -- "${1%.}"
+		fi
+		case "$*" in
 			'"${1?match: expected pattern}"') return 0;;
 		esac
 		return 1
@@ -248,7 +285,7 @@ putq() {
 # TODO: Helpers for terminal control sequences
 
 qat() {
-	set -- "$(cat "$@"; printf .)" # Hang final character off of output to save trailing whitespace
+	set -- "$(cat "$@"; printf .)" # Hang final character off of input to save trailing whitespace
 	quote "${1%?}"
 }
 
@@ -309,6 +346,15 @@ same() {
 	done
 }
 
+seteval() {
+	eval '
+		shift
+		set '"$1"'
+		eval "$*"
+		set -'"$-"'
+	'
+}
+
 sgid() {
 	[ -g "${1?sgid: expected path}" ]
 }
@@ -331,6 +377,10 @@ terminal() {
 
 writeable() {
 	[ -w "${1?writeable: expected path}" ]
+}
+
+xtrace() {
+	setmask -x "$@"
 }
 
 export SHWA=1
