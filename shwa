@@ -46,6 +46,14 @@ default() {
 	false
 }
 
+defined() {
+	if name "${1?defined: expected name}"; then
+		eval '[ "${'"$1"'+.}" ]'
+	else
+		throw "defined: bad name"
+	fi
+}
+
 dirname() {
 	: "${1?dirname: expected path}"
 	set -- "${1%%"${1##*[!/]}"}"
@@ -60,16 +68,14 @@ directory() {
 }
 
 dump() {
-	set -x
 	if name "${1?dump: expected list (name)}"; then
 		eval '
 			eval set -- $'"$1"'
 			printf %b\\n "$@"
 		'
 	else
-		err "dump: bad list (name)"
+		throw "dump: bad list (name)"
 	fi
-	set +x
 }
 
 empty() {
@@ -80,20 +86,16 @@ err() {
 	out "$@" >&2
 }
 
+errexit() {
+	mask -e "$@"
+}
+
 executable() {
 	[ -x "${1?executable: expected path}" ]
 }
 
 exists() {
 	[ -e "${1?exists: expected path}" ]
-}
-
-defined() {
-	if name "${1?defined: expected name}"; then
-		eval '[ "${'"$1"'+.}" ]'
-	else
-		err "defined: bad name"
-	fi
 }
 
 fifo() {
@@ -115,7 +117,7 @@ get() {
 		# and will not require subshell).
 		defined "$1" && eval printf '%s\\n' "\$$1"
 	else
-		err "get: bad name"
+		throw "get: bad name"
 	fi
 }
 
@@ -131,7 +133,7 @@ lay() {
 	if name "${1?lay: expected list (name)}"; then
 		eval 'shift; '"$1"'="$(quote "$@")"'
 	else
-		err "lay: bad list (name)"
+		throw "lay: bad list (name)"
 	fi
 }
 
@@ -139,7 +141,7 @@ length() {
 	if name "${1?length: expected list (name)}"; then
 		eval eval count '$'"$1"
 	else
-		err "length: bad list (name)"
+		throw "length: bad list (name)"
 	fi
 }
 
@@ -153,7 +155,7 @@ map() {
 			done
 		'
 	else
-		err "map: bad list (name)"
+		throw "map: bad list (name)"
 	fi
 }
 
@@ -198,21 +200,21 @@ peek() {
 				out "$1"
 			'
 		else
-			err "peek: bad index"
+			throw "peek: bad index"
 		fi
 	else
-		err "peek: bad list (name)"
+		throw "peek: bad list (name)"
 	fi
 }
 
 pop() {
 	if ! name "${1?pop: expected source (name)}"; then
-		err "pop: bad source (name)"
+		throw "pop: bad source (name)"
 		return
 	fi
 
 	if ! name "${2?pop: expected target (name)}"; then
-		err "pop: bad target (name))"
+		throw "pop: bad target (name))"
 		return
 	fi
 
@@ -241,20 +243,26 @@ printfq() {
 		# that mean we don't need to throw an entire list into a requote during hot routines
 		set -- "$1" "'$2'"
 	else
+		# This abuses a tricky hack that relies on POSIX's alias definition
+		# Because aliases can be arbitrary strings, and the alias command is required to safely output
+		# aliases on request and their definitions. If a string should be "dangerous" it will
+		# be necessarily wrapped in quotes (or all the time, for most shells). Trimming the `alias-name=`
+		# prefix then leaves you with the quote wrapped input.
+		# The trick also requires a subshell, which has the added bonus of preventing the necessary alias
+		# definition from damaging the alias namespace.
 		# shellcheck disable=SC2139
 		set -- "$1" "$(alias _="$2"; alias _)"
 		set -- "$1" "${2#??}"
 	fi
 	# shellcheck disable=SC2059
-	# This function is an explicit mask for printf's functionality
-	printf "$@"
+	printf "$1" "$2"
 }
 
 push() {
 	if name "${1?push: expected list (name)}"; then
 		eval 'shift; '"$1"'="${1+$(quote "$@") }${'"$1"'}"'
 	else
-		err "push: bad list (name)"	
+		throw "push: bad list (name)"	
 	fi
 }
 
@@ -266,7 +274,7 @@ put() {
 			eval 'shift; '"$1"'="$(cat)"'
 		fi
 	else
-		err "put: bad name"
+		throw "put: bad name"
 	fi
 }
 
@@ -278,7 +286,7 @@ putq() {
 			eval 'shift; '"$1"'="$(qat)"'
 		fi
 	else
-		err "putq: bad name"
+		throw "putq: bad name"
 	fi
 }
 
@@ -293,7 +301,7 @@ queue() {
 	if name "${1?queue: expected list (name)}"; then
 		eval 'shift; '"$1"'="${'"$1"'+$'"$1"' }$(quote "$@")"'
 	else
-		err "queue: bad list (name)"
+		throw "queue: bad list (name)"
 	fi
 }
 
@@ -311,7 +319,7 @@ quote() {
 	fi
 
 	# This is heinously ugly but
-	# allows input to be directly quote-ified by
+	# allows input to be directly quote-ifiedz
 	# standard i/o on a line-by-line basis like the UNIX GODS intended
 	# If you want to prevent this behavior from stealing standard input
 	# Attach standard input to the null file (</dev/null)
@@ -337,6 +345,14 @@ regular() {
 	[ -f "${1?regular: expected path}" ]
 }
 
+option() {
+	case "$1" in
+		--) return 2;;
+		[-+]*|--*) return 0;;
+		*) return 1;;
+	esac
+}
+
 same() {
 	[ $# -ne 1 ] || return
 	[ $# -eq 0 ] && return
@@ -346,13 +362,17 @@ same() {
 	done
 }
 
-seteval() {
-	eval '
-		shift
-		set '"$1"'
-		eval "$*"
-		set -'"$-"'
-	'
+mask() {
+	if [ "${1?mask: expected options}" ]; then
+		eval '
+			shift
+			set '"$1"'
+			eval "$*"
+			'"$(set +o)"'
+		'
+	else
+		throw "mask: bad options"
+	fi
 }
 
 sgid() {
@@ -367,6 +387,21 @@ suid() {
 	[ -u "${1?suid: expected path}" ]
 }
 
+status() {
+	eval '
+		if [ $# -eq 0 ]; then
+			out '"$?"'
+			return '"$?"'
+		fi
+	'
+
+	if natural "$1"; then
+		return "$1"
+	else
+		throw "status: bad number"
+	fi
+}
+
 symlink() {
 	[ -h "${1?symlink: expected path}" ]
 }
@@ -375,12 +410,19 @@ terminal() {
 	[ -t "${1-0}" ]
 }
 
+throw() {
+	eval '
+		err "$0: ${*:-'"$?"'}"
+		return '"$(($? ? $? : 1))"'
+	'
+}
+
 writeable() {
 	[ -w "${1?writeable: expected path}" ]
 }
 
 xtrace() {
-	setmask -x "$@"
+	mask -x "$@"
 }
 
 export SHWA=1
