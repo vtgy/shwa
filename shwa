@@ -20,7 +20,7 @@ basename() {
 bsf() {
 	# bsf and csf are named kind of weird, but taking the names "block" and "character" for
 	# special file stuff seems also bad
-	[ -b "${1?bsf: expected path}" ]
+	test -b "${1?bsf: expected path}" 
 }
 
 count() {
@@ -28,7 +28,7 @@ count() {
 }
 
 csf() {
-	[ -c "${1?csf: expected path}" ]
+	test -c "${1?csf: expected path}" 
 }
 
 decimal() {
@@ -64,7 +64,7 @@ dirname() {
 }
 
 directory() {
-	[ -d "${1?directory: expected path}" ]
+	test -d "${1?directory: expected path}" 
 }
 
 dump() {
@@ -79,7 +79,7 @@ dump() {
 }
 
 empty() {
-	! [ -s "${1?empty: expected path}" ]
+	! test -s "${1?empty: expected path}" 
 }
 
 err() {
@@ -91,15 +91,15 @@ errexit() {
 }
 
 executable() {
-	[ -x "${1?executable: expected path}" ]
+	test -x "${1?executable: expected path}" 
 }
 
 exists() {
-	[ -e "${1?exists: expected path}" ]
+	test -e "${1?exists: expected path}" 
 }
 
 fifo() {
-	[ -p "${1?fifo: expected path}" ]
+	test -p "${1?fifo: expected path}" 
 }
 
 get() {
@@ -182,7 +182,7 @@ natural() {
 }
 
 null() {
-	[ -z "${1?null: expected argument}" ]
+	test -z "${1?null: expected argument}" 
 }
 
 out() {
@@ -338,11 +338,11 @@ quote() {
 }
 
 readable() {
-	[ -r "${1?readable: expected path}" ]
+	test -r "${1?readable: expected path}" 
 }
 
 regular() {
-	[ -f "${1?regular: expected path}" ]
+	test -f "${1?regular: expected path}" 
 }
 
 option() {
@@ -376,15 +376,15 @@ mask() {
 }
 
 sgid() {
-	[ -g "${1?sgid: expected path}" ]
+	test -g "${1?sgid: expected path}" 
 }
 
 socket() {
-	[ -S "${1?socket: expected path}" ]
+	test -S "${1?socket: expected path}" 
 }
 
 suid() {
-	[ -u "${1?suid: expected path}" ]
+	test -u "${1?suid: expected path}" 
 }
 
 status() {
@@ -403,11 +403,11 @@ status() {
 }
 
 symlink() {
-	[ -h "${1?symlink: expected path}" ]
+	test -h "${1?symlink: expected path}" 
 }
 
 terminal() {
-	[ -t "${1-0}" ]
+	test -t "${1-0}" 
 }
 
 throw() {
@@ -418,7 +418,7 @@ throw() {
 }
 
 writeable() {
-	[ -w "${1?writeable: expected path}" ]
+	test -w "${1?writeable: expected path}" 
 }
 
 xtrace() {
